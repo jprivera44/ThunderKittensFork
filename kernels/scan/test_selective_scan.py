@@ -73,6 +73,7 @@ def test_with_gating():
     assert y.shape == (batch, dim, seq_len)
     print("✓ Gating test passed")
 
+# I think there is still something wrong here, I should look over it more
 def test_gradient_flow():
     """Ensure gradients flow properly through the scan."""
     print("\nTesting gradient flow...")
@@ -183,6 +184,58 @@ def benchmark_implementation():
         print(f"{desc:25} | Shape: ({batch}, {dim}, {seq_len}, {dstate}) | {ms_per_iter:.2f} ms/iter")
 
 
+def test_edge_cases():
+    """Test edge cases and numerical stability."""
+    print("\nTesting edge cases...")
+    
+    # Test 1: Very small state dimension
+    batch, dim, seq_len, dstate = 2, 64, 128, 1
+    u = torch.randn(batch, dim, seq_len)
+    delta = torch.randn(batch, dim, seq_len).abs()
+    A = -torch.rand(dim, dstate) * 10  # Large negative for stability
+    B = torch.randn(batch, dstate, seq_len)
+    C = torch.randn(batch, dstate, seq_len)
+    
+    y = selective_scan_easy(u, delta, A, B, C)
+    assert not torch.isnan(y).any(), "NaN in output with dstate=1"
+    
+    # Test 2: Very long sequences
+    batch, dim, seq_len, dstate = 1, 32, 4096, 4
+    u = torch.randn(batch, dim, seq_len, dtype=torch.float32)
+    delta = torch.randn(batch, dim, seq_len).abs()
+    A = -torch.rand(dim, dstate) * 5  # Ensure stability
+    B = torch.randn(batch, dstate, seq_len) * 0.1  # Scale down
+    C = torch.randn(batch, dstate, seq_len) * 0.1
+    
+    y = selective_scan_easy(u, delta, A, B, C)
+    assert not torch.isnan(y).any(), "NaN in long sequence"
+    assert torch.isfinite(y).all(), "Inf in long sequence"
+    
+    print("✓ Edge cases test passed")
+
+
+def test_numerical_stability():
+    """Test numerical stability with extreme values."""
+    print("\nTesting numerical stability...")
+    
+    batch, dim, seq_len, dstate = 2, 32, 256, 8
+    
+    # Test with large delta values (should still be stable due to softplus)
+    u = torch.randn(batch, dim, seq_len)
+    delta = torch.randn(batch, dim, seq_len) * 10  # Large deltas
+    A = -torch.rand(dim, dstate) * 20  # Very negative A for stability
+    B = torch.randn(batch, dstate, seq_len) * 0.01
+    C = torch.randn(batch, dstate, seq_len) * 0.01
+    
+    y = selective_scan_ref(u, delta, A, B, C, delta_softplus=True)
+    
+    assert torch.isfinite(y).all(), "Non-finite values with large delta"
+    assert y.abs().max() < 1e6, "Output exploded"
+    
+    print("✓ Numerical stability test passed")
+
+
+
 if __name__ == "__main__":
     # Run all tests
     test_basic_shapes()
@@ -190,6 +243,9 @@ if __name__ == "__main__":
     test_with_gating()
     test_gradient_flow()
     test_compare_with_mamba()
+    test_edge_cases()
+    test_numerical_stability()
+
     
     # Benchmark
     benchmark_implementation()
