@@ -89,38 +89,6 @@ if torch.cuda.is_available():
     print(f'GPU: {torch.cuda.get_device_name(0)}')
 "
 
-# Step 8: Clone ThunderKittens if not already present
-if [ ! -d "/workspace/ThunderKittens" ]; then
-    print_status "Cloning ThunderKittens repository..."
-    cd /workspace
-    git clone https://github.com/HazyResearch/ThunderKittens.git
-    cd ThunderKittens
-    source env.src
-else
-    print_status "ThunderKittens already cloned"
-fi
-
-# Step 9: Create workspace for selective scan project
-print_status "Creating selective scan project workspace..."
-mkdir -p /workspace/selective_scan_tk
-cd /workspace/selective_scan_tk
-
-# Create initial project structure
-cat > README.md << 'EOF'
-# Selective Scan ThunderKittens Implementation
-
-## Environment
-- CUDA 12.6
-- PyTorch 2.6.0 
-- GCC 11 (C++20 support)
-- ThunderKittens
-
-## Project Structure
-- `selective_scan_pytorch.py` - Reference PyTorch implementation
-- `test_selective_scan.py` - Test suite
-- `benchmark.py` - Performance benchmarks
-- `kernels/` - CUDA/ThunderKittens kernels (to be implemented)
-EOF
 
 echo
 print_status "Setup complete! 🎉"
